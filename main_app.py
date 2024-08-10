@@ -12,10 +12,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-st.title("RAG Application built on Gemini Model")
+st.title("Gemini Unimodal Bot")
 
-# Allow the user to select a PDF
 uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
 
 if uploaded_file:
     # Save the uploaded file to a temporary location and use it with PyPDFLoader
@@ -33,20 +42,23 @@ if uploaded_file:
 
     llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, max_tokens=None, timeout=None)
 
-    query = st.chat_input("Say something: ")
-    if query:
+    
+    if query := st.chat_input("What is up?"):
+        # Display user message in chat message container
         with st.chat_message("user"):
-            st.write(query)
+            st.markdown(query)
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": query})
 
         system_prompt = (
-            "You are an assistant for question-answering tasks. "
-            "Use the following pieces of retrieved context to answer "
-            "the question. If you don't know the answer, say that you "
-            "don't know. Use three sentences maximum and keep the "
-            "answer concise."
-            "\n\n"
-            "{context}"
-        )
+                "You are an assistant for question-answering tasks. "
+                "Use the following pieces of retrieved context to answer "
+                "the question. If you don't know the answer, say that you "
+                "don't know. Use three sentences maximum and keep the "
+                "answer concise."
+                "\n\n"
+                "{context}"
+            )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -60,16 +72,10 @@ if uploaded_file:
 
         response = rag_chain.invoke({"input": query})
 
+
+    # response = f"Echo: {query}"
+    # Display assistant response in chat message container
         with st.chat_message("assistant"):
-            typing_message = ""
-            response_tab = st.empty()  # Create the placeholder once outside the loop
-            for char in response["answer"]:
-                typing_message += char
-                response_tab.markdown(typing_message)
-                time.sleep(0.02)  # Adjust speed of typing effect
-
-            # Optionally, ensure the final message is correctly displayed
-            response_tab.markdown(typing_message)
-
-
-        
+            st.markdown(response['answer'])
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": response['answer']})
